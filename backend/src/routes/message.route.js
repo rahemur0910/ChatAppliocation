@@ -1,6 +1,11 @@
 import express from "express";
 import { protectRoute } from "../middleware/auth.middleware.js";
-import {getMessages, getUsersForSidebar, sendMessage} from "../controllers/message.controller.js";
+import {
+  getMessages,
+  getUsersForSidebar,
+  sendMessage,
+  markMessagesAsRead
+} from "../controllers/message.controller.js";
 
 const router = express.Router();
 
@@ -9,4 +14,8 @@ router.get('/:id', protectRoute, getMessages);
 
 router.post("/send/:id", protectRoute, sendMessage);
 
-export default router;  // Export the router to use it in other files
+// ✅ New route to mark messages as read
+router.put("/read/user/:id", protectRoute, markMessagesAsRead);
+
+
+export default router;

@@ -1,3 +1,4 @@
+// backend/src/models/message.model.js
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
@@ -9,7 +10,6 @@ const messageSchema = new mongoose.Schema({
   receiverId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
   },
   text: {
     type: String,
@@ -17,8 +17,19 @@ const messageSchema = new mongoose.Schema({
   image: {
     type: String,
   },
-},{timestamps: true});
-
+  chatId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Chat", // This helps with group or individual chat referencing
+  },
+  readBy: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User", // Keeps track of users who have read the message
+    }
+  ],
+}, {
+  timestamps: true,
+});
 
 const Message = mongoose.model("Message", messageSchema);
 export default Message;

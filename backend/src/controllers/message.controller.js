@@ -66,3 +66,27 @@ export const sendMessage = async (req,res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 };
+
+// In controller
+export const markMessagesAsRead = async (req, res) => {
+    const { id: userToChatId } = req.params;
+    const myId = req.user._id;
+  
+    try {
+      await Message.updateMany(
+        {
+          $or: [
+            { senderId: myId, receiverId: userToChatId },
+            { senderId: userToChatId, receiverId: myId }
+          ],
+          readBy: { $ne: myId }
+        },
+        { $push: { readBy: myId } }
+      );
+  
+      res.status(200).json({ success: true, message: "Messages marked as read." });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error updating messages", error });
+    }
+  };
+  
