@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { axiosInstance } from "../lib/axios";
+import { axiosInstance } from "../lib/axios";  // Correct import for axiosInstance
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
 
@@ -13,10 +13,10 @@ const Sidebar = () => {
     setSelectedUser,
     isUsersLoading,
     unreadMessages, // <- get unread counts from Zustand
-    setUnreadCount, // <- function to set unread counts
+    setUnreadCount, // Ensure you have a method to update unread counts
   } = useChatStore();
 
-  const { onlineUsers, user } = useAuthStore();
+  const { onlineUsers, user } = useAuthStore();  // Access user from auth store
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
   useEffect(() => {
@@ -24,7 +24,6 @@ const Sidebar = () => {
   }, [getUsers]);
 
   useEffect(() => {
-    // Fetch unread message counts after login or on page load
     if (user) {
       const fetchUnread = async () => {
         try {
@@ -32,7 +31,6 @@ const Sidebar = () => {
             headers: { Authorization: `Bearer ${user.token}` }
           });
 
-          // Persist the unread counts in the Zustand store
           Object.entries(res.data).forEach(([chatId, count]) => {
             setUnreadCount(chatId, count);
           });
@@ -43,11 +41,22 @@ const Sidebar = () => {
 
       fetchUnread();
     }
-  }, [user, setUnreadCount]);
+  }, [user, setUnreadCount]);  // Only run this effect when `user` is available
 
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))
     : users;
+
+  // Sorting users: Users with unread messages should appear first
+  const sortedUsers = filteredUsers.sort((a, b) => {
+    const unreadA = unreadMessages[a._id] || 0;
+    const unreadB = unreadMessages[b._id] || 0;
+
+    // Sort unread messages to appear first
+    if (unreadA > unreadB) return -1;
+    if (unreadA < unreadB) return 1;
+    return 0;
+  });
 
   if (isUsersLoading) return <SidebarSkeleton />;
 
@@ -76,7 +85,7 @@ const Sidebar = () => {
       </div>
 
       <div className="overflow-y-auto w-full py-3">
-        {filteredUsers.map((user) => {
+        {sortedUsers.map((user) => {
           const unreadCount = unreadMessages[user._id] || 0;
 
           return (
@@ -95,29 +104,37 @@ const Sidebar = () => {
                   alt={user.name}
                   className="size-12 object-cover rounded-full"
                 />
+
+                {/* Unread count displayed over the profile picture */}
+                {unreadCount > 0 && (
+                  <div className="absolute top-0 right-0 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                    {unreadCount}
+                  </div>
+                )}
+
                 {onlineUsers.includes(user._id) && (
                   <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900" />
                 )}
               </div>
 
               <div className="hidden lg:block text-left min-w-0 flex-1">
-                <div className="font-medium truncate">{user.fullName}</div>
+                <div
+                  className={`font-medium truncate
+                    ${unreadCount > 0 ? "font-bold text-lg" : ""}
+                    transition-all duration-200
+                    hover:text-blue-500`} // Bold and larger font size for unread messages, with hover effect
+                >
+                  {user.fullName}
+                </div>
                 <div className="text-sm text-zinc-400">
                   {onlineUsers.includes(user._id) ? "Online" : "Offline"}
                 </div>
               </div>
-
-              {/* 🔴 Unread badge */}
-              {unreadCount > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {unreadCount}
-                </span>
-              )}
             </button>
           );
         })}
 
-        {filteredUsers.length === 0 && (
+        {sortedUsers.length === 0 && (
           <div className="text-center text-zinc-500 py-4">No online users</div>
         )}
       </div>
