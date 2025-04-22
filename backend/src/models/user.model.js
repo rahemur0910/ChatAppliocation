@@ -20,6 +20,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // New fields to track unread messages
+    unreadMessageCount: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
+    unreadSenders: {
+      type: [mongoose.Schema.Types.ObjectId], // Array of sender IDs
+      default: [],
+    },
   },
   { timestamps: true }
 );

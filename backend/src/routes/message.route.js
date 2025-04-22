@@ -5,24 +5,28 @@ import {
   getUsersForSidebar,
   sendMessage,
   markMessagesAsRead,
-  getUnreadCounts
+  getUnreadCounts,
+  getUnreadSenders, // ✅ Make sure this is implemented in your controller
 } from "../controllers/message.controller.js";
 
 const router = express.Router();
 
-// Get users for the sidebar (except the logged-in user)
+// ✅ Get users for the sidebar
 router.get('/users', protectRoute, getUsersForSidebar);
 
-// Get messages for a specific chat
-router.get('/:id', protectRoute, getMessages);
+// ✅ Get unread message counts per chat
+router.get("/unread-counts", protectRoute, getUnreadCounts);
 
-// Send a message to a specific user
-router.post("/send/:id", protectRoute, sendMessage);
+// ✅ Get list of senders who sent unread messages
+router.get("/unread-senders", protectRoute, getUnreadSenders);
 
-// Mark messages as read for a specific chat
+// ✅ Mark all messages as read for a specific chat
 router.put("/read/user/:id", protectRoute, markMessagesAsRead);
 
-// Get unread message counts for the logged-in user
-router.get("/unread-counts", protectRoute, getUnreadCounts);
+// ✅ Send a message
+router.post("/send/:id", protectRoute, sendMessage);
+
+// ✅ Get messages for a specific chat (MUST come after specific routes)
+router.get('/:id', protectRoute, getMessages);
 
 export default router;

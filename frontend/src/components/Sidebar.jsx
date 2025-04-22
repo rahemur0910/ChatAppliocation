@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { axiosInstance } from "../lib/axios";  // Correct import for axiosInstance
+import { axiosInstance } from "../lib/axios";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
+import moment from "moment";
 
 const Sidebar = () => {
   const {
@@ -12,25 +13,28 @@ const Sidebar = () => {
     selectedUser,
     setSelectedUser,
     isUsersLoading,
-    unreadMessages, // <- get unread counts from Zustand
-    setUnreadCount, // Ensure you have a method to update unread counts
+    unreadMessages,
+    setUnreadCount,
+    unreadSenders, // This should now be available in your store
+    setUnreadSenders,  // We will use this to store unread senders
   } = useChatStore();
 
-  const { onlineUsers, user } = useAuthStore();  // Access user from auth store
+  const { onlineUsers, user } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
+  // Fetch users after login
   useEffect(() => {
     getUsers();
   }, [getUsers]);
 
+  // Fetch unread message counts and unread senders after login
   useEffect(() => {
     if (user) {
-      const fetchUnread = async () => {
+      const fetchUnreadCounts = async () => {
         try {
           const res = await axiosInstance.get("/messages/unread-counts", {
-            headers: { Authorization: `Bearer ${user.token}` }
+            headers: { Authorization: `Bearer ${user.token}` },
           });
-
           Object.entries(res.data).forEach(([chatId, count]) => {
             setUnreadCount(chatId, count);
           });
@@ -39,26 +43,39 @@ const Sidebar = () => {
         }
       };
 
-      fetchUnread();
-    }
-  }, [user, setUnreadCount]);  // Only run this effect when `user` is available
+      const fetchUnreadSenders = async () => {
+        try {
+          // Fetch unread senders (users who have sent unread messages)
+          const res = await axiosInstance.get("/messages/unread-senders", {
+            headers: { Authorization: `Bearer ${user.token}` },
+          });
+          setUnreadSenders(res.data.map((s) => s.senderId));  // Store unread senders
+        } catch (err) {
+          console.error("Failed to fetch unread senders", err);
+        }
+      };
 
+      fetchUnreadCounts();
+      fetchUnreadSenders();
+    }
+  }, [user, setUnreadCount, setUnreadSenders]);
+
+  // Filter users to show only online users if selected
   const filteredUsers = showOnlineOnly
-    ? users.filter((user) => onlineUsers.includes(user._id))
+    ? users.filter((u) => onlineUsers.includes(u._id))
     : users;
 
-  // Sorting users: Users with unread messages should appear first
+  // Sort users by unread message count (descending)
   const sortedUsers = filteredUsers.sort((a, b) => {
     const unreadA = unreadMessages[a._id] || 0;
     const unreadB = unreadMessages[b._id] || 0;
-
-    // Sort unread messages to appear first
-    if (unreadA > unreadB) return -1;
-    if (unreadA < unreadB) return 1;
-    return 0;
+    return unreadB - unreadA;
   });
 
   if (isUsersLoading) return <SidebarSkeleton />;
+
+  // Ensure unreadSenders is always an array
+  const unreadSendersArray = unreadSenders || [];
 
   return (
     <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
@@ -85,49 +102,55 @@ const Sidebar = () => {
       </div>
 
       <div className="overflow-y-auto w-full py-3">
-        {sortedUsers.map((user) => {
-          const unreadCount = unreadMessages[user._id] || 0;
+        {sortedUsers.map((u) => {
+          const unreadCount = unreadMessages[u._id] || 0;
+          const lastMsg = u.lastMessage;
+          const lastText = lastMsg?.text || "";
+          const lastTime = lastMsg?.createdAt
+            ? moment(lastMsg.createdAt).fromNow()
+            : "";
 
           return (
             <button
-              key={user._id}
-              onClick={() => setSelectedUser(user)}
-              className={`
-                w-full px-3 py-2 flex items-center gap-3 justify-start
+              key={u._id}
+              onClick={() => setSelectedUser(u)}
+              className={`w-full px-3 py-2 flex items-center gap-3 justify-start
                 hover:bg-base-300 transition-colors relative
-                ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
+                ${selectedUser?._id === u._id ? "bg-base-300 ring-1 ring-base-300" : ""}
+                ${unreadSendersArray.includes(u._id) ? "bg-yellow-100" : ""}  {/* Highlight unread senders */}
               `}
             >
               <div className="relative mx-auto lg:mx-0">
                 <img
-                  src={user.profilePic || "/avatar.png"}
-                  alt={user.name}
+                  src={u.profilePic || "/avatar.png"}
+                  alt={u.name}
                   className="size-12 object-cover rounded-full"
                 />
-
-                {/* Unread count displayed over the profile picture */}
                 {unreadCount > 0 && (
-                  <div className="absolute top-0 right-0 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  <div className="absolute top-0 right-0 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                     {unreadCount}
                   </div>
                 )}
-
-                {onlineUsers.includes(user._id) && (
+                {onlineUsers.includes(u._id) && (
                   <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900" />
                 )}
               </div>
 
               <div className="hidden lg:block text-left min-w-0 flex-1">
-                <div
-                  className={`font-medium truncate
-                    ${unreadCount > 0 ? "font-bold text-lg" : ""}
-                    transition-all duration-200
-                    hover:text-blue-500`} // Bold and larger font size for unread messages, with hover effect
-                >
-                  {user.fullName}
+                <div className="flex justify-between items-center">
+                  <div
+                    className={`truncate ${unreadCount > 0 ? "font-bold text-lg" : "text-base"}`}
+                  >
+                    {u.fullName}
+                  </div>
+                  <div className="text-xs text-zinc-400 ml-2">{lastTime}</div>
                 </div>
-                <div className="text-sm text-zinc-400">
-                  {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+                <div
+                  className={`text-sm truncate ${
+                    unreadCount > 0 ? "font-semibold text-zinc-700" : "text-zinc-500"
+                  }`}
+                >
+                  {lastText}
                 </div>
               </div>
             </button>
@@ -135,7 +158,7 @@ const Sidebar = () => {
         })}
 
         {sortedUsers.length === 0 && (
-          <div className="text-center text-zinc-500 py-4">No online users</div>
+          <div className="text-center text-zinc-500 py-4">No users found</div>
         )}
       </div>
     </aside>

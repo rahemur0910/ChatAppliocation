@@ -10,10 +10,9 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
-  unreadMessages: JSON.parse(localStorage.getItem("unreadMessages") || "{}"), // Persist unread messages
+  unreadMessages: JSON.parse(localStorage.getItem("unreadMessages") || "{}"),
   allMessagesListeners: [],
 
-  // Get user list
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
@@ -26,17 +25,12 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Get messages for selected user
   getMessages: async (userId) => {
     set({ isMessagesLoading: true });
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
       set({ messages: res.data });
-
-      // Mark messages as read in DB
       await axiosInstance.put(`/messages/read/user/${userId}`);
-
-      // Clear unread count locally
       get().clearUnreadMessages(userId);
     } catch (error) {
       toast.error(error?.response?.data?.message || "Failed to load messages.");
@@ -55,7 +49,6 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // Listen only for messages from the currently selected user
   subscribeToMessages: () => {
     const { selectedUser } = get();
     if (!selectedUser) return;
@@ -63,19 +56,13 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     const listener = (newMessage) => {
       if (newMessage.senderId !== selectedUser._id) return;
-
-      set({
-        messages: [...get().messages, newMessage],
-      });
-
-      // Optional: Scroll to bottom or update UI
+      set({ messages: [...get().messages, newMessage] });
     };
 
     socket.on("newMessage", listener);
     set({ allMessagesListeners: [...get().allMessagesListeners, listener] });
   },
 
-  // Listen to all messages globally for notifications
   subscribeToAllMessages: () => {
     const socket = useAuthStore.getState().socket;
     const { authUser } = useAuthStore.getState();
@@ -111,29 +98,36 @@ export const useChatStore = create((set, get) => ({
     set({ allMessagesListeners: [] });
   },
 
-  // Handle unread messages per user
   addUnreadMessage: (userId) => {
     set(state => {
       const newUnreadMessages = {
         ...state.unreadMessages,
         [userId]: (state.unreadMessages[userId] || 0) + 1,
       };
-      localStorage.setItem("unreadMessages", JSON.stringify(newUnreadMessages)); // Persist in localStorage
+      localStorage.setItem("unreadMessages", JSON.stringify(newUnreadMessages));
       return { unreadMessages: newUnreadMessages };
     });
   },
 
   clearUnreadMessages: (userId) => {
     set(state => {
-      const newUnreadMessages = {
-        ...state.unreadMessages,
-        [userId]: 0,
-      };
-      localStorage.setItem("unreadMessages", JSON.stringify(newUnreadMessages)); // Persist in localStorage
+      const newUnreadMessages = { ...state.unreadMessages, [userId]: 0 };
+      localStorage.setItem("unreadMessages", JSON.stringify(newUnreadMessages));
       return { unreadMessages: newUnreadMessages };
     });
   },
 
-  // Handle user selection
+  // ✅ Handle unread count from server
+  setUnreadCountsFromServer: (counts) => {
+    set(state => {
+      const stored = { ...state.unreadMessages };
+      for (const [userId, count] of Object.entries(counts)) {
+        stored[userId] = (stored[userId] || 0) + count;
+      }
+      localStorage.setItem("unreadMessages", JSON.stringify(stored));
+      return { unreadMessages: stored };
+    });
+  },
+
   setSelectedUser: (selectedUser) => set({ selectedUser }),
 }));
