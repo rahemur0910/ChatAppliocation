@@ -10,7 +10,7 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
-  unreadMessages: {}, // { userId: count }
+  unreadMessages: JSON.parse(localStorage.getItem("unreadMessages") || "{}"), // Persist unread messages
   allMessagesListeners: [],
 
   // Get user list
@@ -113,21 +113,25 @@ export const useChatStore = create((set, get) => ({
 
   // Handle unread messages per user
   addUnreadMessage: (userId) => {
-    set(state => ({
-      unreadMessages: {
+    set(state => {
+      const newUnreadMessages = {
         ...state.unreadMessages,
         [userId]: (state.unreadMessages[userId] || 0) + 1,
-      },
-    }));
+      };
+      localStorage.setItem("unreadMessages", JSON.stringify(newUnreadMessages)); // Persist in localStorage
+      return { unreadMessages: newUnreadMessages };
+    });
   },
 
   clearUnreadMessages: (userId) => {
-    set(state => ({
-      unreadMessages: {
+    set(state => {
+      const newUnreadMessages = {
         ...state.unreadMessages,
         [userId]: 0,
-      },
-    }));
+      };
+      localStorage.setItem("unreadMessages", JSON.stringify(newUnreadMessages)); // Persist in localStorage
+      return { unreadMessages: newUnreadMessages };
+    });
   },
 
   // Handle user selection

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
+import { axiosInstance } from "../lib/axios";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
 
@@ -12,14 +13,37 @@ const Sidebar = () => {
     setSelectedUser,
     isUsersLoading,
     unreadMessages, // <- get unread counts from Zustand
+    setUnreadCount, // <- function to set unread counts
   } = useChatStore();
 
-  const { onlineUsers } = useAuthStore();
+  const { onlineUsers, user } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
   useEffect(() => {
     getUsers();
   }, [getUsers]);
+
+  useEffect(() => {
+    // Fetch unread message counts after login or on page load
+    if (user) {
+      const fetchUnread = async () => {
+        try {
+          const res = await axiosInstance.get("/messages/unread-counts", {
+            headers: { Authorization: `Bearer ${user.token}` }
+          });
+
+          // Persist the unread counts in the Zustand store
+          Object.entries(res.data).forEach(([chatId, count]) => {
+            setUnreadCount(chatId, count);
+          });
+        } catch (err) {
+          console.error("Failed to fetch unread counts", err);
+        }
+      };
+
+      fetchUnread();
+    }
+  }, [user, setUnreadCount]);
 
   const filteredUsers = showOnlineOnly
     ? users.filter((user) => onlineUsers.includes(user._id))

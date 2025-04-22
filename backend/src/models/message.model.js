@@ -1,4 +1,3 @@
-// backend/src/models/message.model.js
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
@@ -30,6 +29,10 @@ const messageSchema = new mongoose.Schema({
 }, {
   timestamps: true,
 });
+
+// Indexing for performance
+messageSchema.index({ senderId: 1, receiverId: 1 });
+messageSchema.index({ chatId: 1 });
 
 const Message = mongoose.model("Message", messageSchema);
 export default Message;
